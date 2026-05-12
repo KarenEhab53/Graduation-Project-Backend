@@ -18,6 +18,8 @@ async function dbConnection() {
     console.error(" DB Connection Error:", error.message);
   }
 }
+const authRoutes = require("./routes/authRoutes");
+app.use("/api", authRoutes);
 
 const port = process.env.PORT || 3000;
 
