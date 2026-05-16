@@ -8,6 +8,7 @@ const upload = require("../middleware/upload");
 router.post(
   "/register",
   upload.fields([
+    { name: "profileImage", maxCount: 1 },
     {
       name: "syndicateCardImage",
       maxCount: 1,

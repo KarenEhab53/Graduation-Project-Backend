@@ -55,7 +55,6 @@ const registerValidation = Joi.object({
       "South Sinai",
     )
     .default("Cairo"),
-
   role: Joi.string().valid("user", "doctor").default("user"),
 });
 const loginValidation = Joi.object({

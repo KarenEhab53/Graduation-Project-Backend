@@ -32,7 +32,21 @@ const registerController = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    if (role === "doctor") {
+      const files = req.files || {};
+
+      if (
+        !files.syndicateCardImage ||
+        !files.universityCertificateImage ||
+        !files.nationalIdImage
+      ) {
+        return res.status(400).json({
+          message: "All doctor documents are required",
+        });
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const newUser = new User({
       name,
@@ -43,31 +57,28 @@ const registerController = async (req, res) => {
       location,
       role,
     });
-   const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-   if (role === "doctor") {
-     newUser.doctorInfo = {
-       syndicateCardImage: req.files?.syndicateCardImage?.[0]
-         ? `${baseUrl}/uploads/${req.files.syndicateCardImage[0].filename}`
-         : "",
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-       universityCertificateImage: req.files?.universityCertificateImage?.[0]
-         ? `${baseUrl}/uploads/${req.files.universityCertificateImage[0].filename}`
-         : "",
-
-       nationalIdImage: req.files?.nationalIdImage?.[0]
-         ? `${baseUrl}/uploads/${req.files.nationalIdImage[0].filename}`
-         : "",
-
-       isApproved: false,
-     };
-   }
+    if (role === "doctor") {
+      newUser.doctorInfo = {
+        syndicateCardImage: `${baseUrl}/uploads/${req.files.syndicateCardImage[0].filename}`,
+        universityCertificateImage: `${baseUrl}/uploads/${req.files.universityCertificateImage[0].filename}`,
+        nationalIdImage: `${baseUrl}/uploads/${req.files.nationalIdImage[0].filename}`,
+        isApproved: false,
+      };
+    }
+newUser.profileImage = req.files?.profileImage?.[0]
+  ? `${baseUrl}/uploads/${req.files.profileImage[0].filename}`
+  : `${baseUrl}/uploads/default.jpg`;
 
     await newUser.save();
 
+    const safeUser = await User.findById(newUser._id).select("-password");
+
     res.status(201).json({
       message: "User registered successfully",
-      data: newUser,
+      data: safeUser,
     });
   } catch (error) {
     console.log(error);
@@ -95,7 +106,7 @@ const loginController = async (req, res) => {
 
     const { email, password } = value;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
       return res.status(404).json({
@@ -127,11 +138,13 @@ const loginController = async (req, res) => {
         expiresIn: "7d",
       },
     );
+const safeUser = await User.findById(user._id).select("-password");
 
     res.status(200).json({
       message: "Login successful",
+        user: safeUser,
       token,
-      user,
+
     });
   } catch (error) {
     console.log(error);
