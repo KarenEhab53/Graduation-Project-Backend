@@ -1,6 +1,27 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { registerController } = require('../controllers/authController');
-router.post('/register', registerController);
 
+const { registerController,loginController } = require("../controllers/authController");
+
+const upload = require("../middleware/upload");
+
+router.post(
+  "/register",
+  upload.fields([
+    {
+      name: "syndicateCardImage",
+      maxCount: 1,
+    },
+    {
+      name: "universityCertificateImage",
+      maxCount: 1,
+    },
+    {
+      name: "nationalIdImage",
+      maxCount: 1,
+    },
+  ]),
+  registerController,
+);
+router.post("/login",loginController)
 module.exports = router;

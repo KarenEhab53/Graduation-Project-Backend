@@ -1,5 +1,4 @@
-const Joi = require("joi");
-
+const Joi = require('joi');
 const registerValidation = Joi.object({
   name: Joi.string().required().trim().min(3).max(30),
 
@@ -58,16 +57,17 @@ const registerValidation = Joi.object({
     .default("Cairo"),
 
   role: Joi.string().valid("user", "doctor").default("user"),
-
-  doctorInfo: Joi.when("role", {
-    is: "doctor",
-    then: Joi.object({
-      syndicateCardImage: Joi.string().required(),
-      universityCertificateImage: Joi.string().required(),
-      nationalIdImage: Joi.string().required(),
-    }).required(),
-    otherwise: Joi.forbidden(),
-  }),
 });
+const loginValidation = Joi.object({
+  email: Joi.string().email().required().trim(),
 
-module.exports = registerValidation;
+  password: Joi.string()
+    .required()
+    .trim()
+    .min(6)
+    .pattern(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/)
+    .messages({
+      "string.pattern.base": "Password must contain letters and numbers",
+    }),
+});
+module.exports={registerValidation,loginValidation}
