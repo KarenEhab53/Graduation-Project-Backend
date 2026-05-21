@@ -11,8 +11,9 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
       minlength: 6,
-      select: false
+      select: false,
     },
+
     location: {
       type: String,
       enum: [
@@ -41,6 +42,7 @@ const userSchema = new mongoose.Schema(
       ],
       default: "Cairo",
     },
+
     phone: {
       type: String,
       required: true,
@@ -48,7 +50,12 @@ const userSchema = new mongoose.Schema(
       match: /^01[0-2,5]{1}[0-9]{8}$/,
     },
 
-    NID: { type: String, required: true, trim: true, match: /^[0-9]{14}$/ },
+    NID: {
+      type: String,
+      required: true,
+      trim: true,
+      match: /^[0-9]{14}$/,
+    },
 
     role: {
       type: String,
@@ -67,9 +74,10 @@ const userSchema = new mongoose.Schema(
       universityCertificateImage: String,
       nationalIdImage: String,
 
-      isApproved: {
-        type: Boolean,
-        default: false,
+      status: {
+        type: String,
+        enum: ["pending", "approved", "rejected"],
+        default: "pending",
       },
     },
   },

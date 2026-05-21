@@ -1,18 +1,22 @@
-const Joi = require('joi');
+const Joi = require("joi");
 const registerValidation = Joi.object({
-  name: Joi.string().required().trim().min(3).max(30),
-
+  name: Joi.string()
+    .trim()
+    .min(3)
+    .max(30)
+    .pattern(/^[a-zA-Z\s]+$/),
   email: Joi.string().email().required().trim(),
 
   password: Joi.string()
     .required()
     .trim()
     .min(6)
+    .max(50)
     .pattern(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/)
     .messages({
       "string.pattern.base": "Password must contain letters and numbers",
     }),
-
+  confirmPassword: Joi.string().valid(Joi.ref("password")).required(),
   phone: Joi.string()
     .required()
     .trim()
@@ -60,13 +64,6 @@ const registerValidation = Joi.object({
 const loginValidation = Joi.object({
   email: Joi.string().email().required().trim(),
 
-  password: Joi.string()
-    .required()
-    .trim()
-    .min(6)
-    .pattern(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/)
-    .messages({
-      "string.pattern.base": "Password must contain letters and numbers",
-    }),
+  password: Joi.string().required().trim().min(6).max(50),
 });
-module.exports={registerValidation,loginValidation}
+module.exports = { registerValidation, loginValidation };

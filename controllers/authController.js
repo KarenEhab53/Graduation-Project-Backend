@@ -1,8 +1,14 @@
-const {registerValidation, loginValidation} = require("./validation/authValidation");
+const {
+  registerValidation,
+  loginValidation,
+} = require("./validation/authValidation");
+
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const sendEmail = require("../services/emailService");
 
+// ================= REGISTER =================
 const registerController = async (req, res) => {
   try {
     const { error, value } = registerValidation.validate(req.body, {
@@ -11,19 +17,14 @@ const registerController = async (req, res) => {
     });
 
     if (error) {
-      return res.status(400).json({
-        message: error.details[0].message,
-      });
+      return res.status(400).json({ message: error.details[0].message });
     }
 
     const { name, email, password, phone, NID, location, role } = value;
 
     const existingUser = await User.findOne({ email });
-
     if (existingUser) {
-      return res.status(400).json({
-        message: "Email already exists",
-      });
+      return res.status(400).json({ message: "Email already exists" });
     }
 
     if (role === "admin") {
@@ -65,12 +66,13 @@ const registerController = async (req, res) => {
         syndicateCardImage: `${baseUrl}/uploads/${req.files.syndicateCardImage[0].filename}`,
         universityCertificateImage: `${baseUrl}/uploads/${req.files.universityCertificateImage[0].filename}`,
         nationalIdImage: `${baseUrl}/uploads/${req.files.nationalIdImage[0].filename}`,
-        isApproved: false,
+        status: "pending",
       };
     }
-newUser.profileImage = req.files?.profileImage?.[0]
-  ? `${baseUrl}/uploads/${req.files.profileImage[0].filename}`
-  : `${baseUrl}/uploads/default.jpg`;
+
+    newUser.profileImage = req.files?.profileImage?.[0]
+      ? `${baseUrl}/uploads/${req.files.profileImage[0].filename}`
+      : `${baseUrl}/uploads/default.jpg`;
 
     await newUser.save();
 
@@ -81,8 +83,6 @@ newUser.profileImage = req.files?.profileImage?.[0]
       data: safeUser,
     });
   } catch (error) {
-    console.log(error);
-
     res.status(500).json({
       message: "Internal server error",
       error: error.message,
@@ -90,7 +90,7 @@ newUser.profileImage = req.files?.profileImage?.[0]
   }
 };
 
-
+// ================= LOGIN =================
 const loginController = async (req, res) => {
   try {
     const { error, value } = loginValidation.validate(req.body, {
@@ -99,9 +99,7 @@ const loginController = async (req, res) => {
     });
 
     if (error) {
-      return res.status(400).json({
-        message: error.details[0].message,
-      });
+      return res.status(400).json({ message: error.details[0].message });
     }
 
     const { email, password } = value;
@@ -122,40 +120,98 @@ const loginController = async (req, res) => {
       });
     }
 
-    if (user.role === "doctor" && user.doctorInfo?.isApproved === false) {
-      return res.status(403).json({
-        message: "Your account is pending admin approval",
-      });
+    // DOCTOR STATUS CHECK
+    if (user.role === "doctor") {
+      const status = user.doctorInfo?.status;
+
+      if (status === "pending") {
+        return res.status(403).json({
+          message: "Your account is pending admin approval",
+        });
+      }
+
+      if (status === "rejected") {
+        return res.status(403).json({
+          message: "Your account has been rejected by admin",
+        });
+      }
     }
 
     const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role,
-      },
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET,
-      {
-        expiresIn: "7d",
-      },
+      { expiresIn: "7d" },
     );
-const safeUser = await User.findById(user._id).select("-password");
+
+    const safeUser = await User.findById(user._id).select("-password");
 
     res.status(200).json({
       message: "Login successful",
-        user: safeUser,
+      user: safeUser,
       token,
-
     });
   } catch (error) {
-    console.log(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
-    res.status(500).json({
-      message: "Internal server error",
+// ================= APPROVE DOCTOR =================
+const ApproveDoctor = async (req, res) => {
+  try {
+    const doctor = await User.findById(req.params.id);
+
+    if (!doctor || doctor.role !== "doctor") {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    doctor.doctorInfo.status = "approved";
+    await doctor.save();
+
+    await sendEmail(
+      doctor.email,
+      "Account Approved",
+      "Your doctor account has been approved. You can now login.",
+    );
+
+    res.status(200).json({
+      message: "Doctor approved successfully",
+      data: doctor,
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ================= REVOKE (REJECT) DOCTOR =================
+const revokeDoctor = async (req, res) => {
+  try {
+    const doctor = await User.findById(req.params.id);
+
+    if (!doctor || doctor.role !== "doctor") {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    doctor.doctorInfo.status = "rejected";
+    await doctor.save();
+
+    await sendEmail(
+      doctor.email,
+      "Account Rejected",
+      "Your doctor account has been rejected. Please contact support.",
+    );
+
+    res.status(200).json({
+      message: "Doctor rejected successfully",
+      data: doctor,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
 module.exports = {
   registerController,
   loginController,
+  ApproveDoctor,
+  revokeDoctor,
 };

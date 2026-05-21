@@ -1,10 +1,16 @@
 const express = require("express");
 const router = express.Router();
 
-const { registerController,loginController } = require("../controllers/authController");
+const {
+  registerController,
+  loginController,
+  ApproveDoctor,
+  revokeDoctor,
+} = require("../controllers/authController");
 
 const upload = require("../middleware/upload");
-
+const auth = require("../middleware/authMiddleware");
+const isAdmin = require("../middleware/adminMiddleware");
 router.post(
   "/register",
   upload.fields([
@@ -24,5 +30,7 @@ router.post(
   ]),
   registerController,
 );
-router.post("/login",loginController)
+router.post("/login", loginController);
+router.patch("/approve-doctor/:id", auth, isAdmin, ApproveDoctor);
+router.patch("/revoke-doctor/:id", auth, isAdmin, revokeDoctor);
 module.exports = router;
