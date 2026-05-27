@@ -1,4 +1,5 @@
 const Joi = require("joi");
+const { resetPassword } = require("../authController");
 const registerValidation = Joi.object({
   name: Joi.string()
     .trim()
@@ -66,4 +67,60 @@ const loginValidation = Joi.object({
 
   password: Joi.string().required().trim().min(6).max(50),
 });
-module.exports = { registerValidation, loginValidation };
+const updateProfileValidation=Joi.object({
+  name:Joi.string().trim()
+    .min(3)
+    .max(30)
+    .pattern(/^[a-zA-Z\s]+$/),
+  phone: Joi.string()
+    .required()
+    .trim()
+    .pattern(/^01[0-2,5]{1}[0-9]{8}$/)
+    .messages({
+      "string.pattern.base": "Phone number must be a valid Egyptian number",
+    }),
+    location: Joi.string()
+    .valid(
+      "Cairo",
+      "Giza",
+      "Alexandria",
+      "Dakahlia",
+      "Sharqia",
+      "Qalyubia",
+      "Gharbia",
+      "Monufia",
+      "Fayoum",
+      "Beni Suef",
+      "Minya",
+      "Assiut",
+      "Sohag",
+      "Qena",
+      "Luxor",
+      "Aswan",
+      "Suez",
+      "Ismailia",
+      "Port Said",
+      "Red Sea",
+      "North Sinai",
+      "South Sinai",
+    )
+    .default("Cairo"),
+})
+const verifyOtpValidation=Joi.object({
+  email: Joi.string().email().required().trim(),
+otp:Joi.string().min(5).max(5)
+})
+
+const resetPasswordValidation = Joi.object({
+  password: Joi.string()
+    .min(8)
+    .required(),
+
+  confirmPassword: Joi.string()
+    .valid(Joi.ref("password"))
+    .required()
+    .messages({
+      "any.only": "Passwords do not match",
+    }),
+});
+module.exports = { registerValidation, loginValidation,updateProfileValidation,verifyOtpValidation ,resetPasswordValidation};

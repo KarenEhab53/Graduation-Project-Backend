@@ -5,7 +5,7 @@ const {
   registerController,
   loginController,
   ApproveDoctor,
-  revokeDoctor,
+  revokeDoctor,updateController,forgetPassword,verifyOtp,resetPassword
 } = require("../controllers/authController");
 
 const upload = require("../middleware/upload");
@@ -31,6 +31,8 @@ router.post(
   registerController,
 );
 router.post("/login", loginController);
-router.patch("/approve-doctor/:id", auth, isAdmin, ApproveDoctor);
-router.patch("/revoke-doctor/:id", auth, isAdmin, revokeDoctor);
+router.put("/update-profile",auth,updateController)
+router.post("/forget-password",forgetPassword)
+router.post("/verfiy-otp",verifyOtp)
+router.post("/reset-password",resetPassword)
 module.exports = router;

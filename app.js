@@ -27,6 +27,8 @@ async function dbConnection() {
 const authRoutes = require("./routes/authRoutes");
 app.use("/api", authRoutes);
 
+const doctorRoutes = require("./routes/doctorRoutes");
+app.use("/api", doctorRoutes);
 
 const port = process.env.PORT || 3000;
 

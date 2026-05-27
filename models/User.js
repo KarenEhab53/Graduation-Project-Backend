@@ -54,7 +54,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      match: /^[0-9]{14}$/,
+      match: /^[0-9]{14}$/,unique:true
     },
 
     role: {
@@ -80,6 +80,8 @@ const userSchema = new mongoose.Schema(
         default: "pending",
       },
     },
+   resetOtp: String,
+resetOtpExpires: Date,
   },
   { timestamps: true },
 );

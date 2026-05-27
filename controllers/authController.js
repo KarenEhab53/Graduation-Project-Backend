@@ -1,11 +1,13 @@
 const {
   registerValidation,
   loginValidation,
+  updateProfileValidation,verifyOtpValidation,resetPasswordValidation
 } = require("./validation/authValidation");
 
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const sendEmail = require("../services/emailService");
 
 // ================= REGISTER =================
@@ -32,7 +34,14 @@ const registerController = async (req, res) => {
         message: "Admin cannot be created from registration",
       });
     }
+    const existingNID = await User.findOne({ NID });
 
+    if (existingNID) {
+      return res.status(400).json({
+        success: false,
+        message: "National ID already exists",
+      });
+    }
     if (role === "doctor") {
       const files = req.files || {};
 
@@ -89,7 +98,6 @@ const registerController = async (req, res) => {
     });
   }
 };
-
 // ================= LOGIN =================
 const loginController = async (req, res) => {
   try {
@@ -151,67 +159,178 @@ const loginController = async (req, res) => {
       token,
     });
   } catch (error) {
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-// ================= APPROVE DOCTOR =================
-const ApproveDoctor = async (req, res) => {
-  try {
-    const doctor = await User.findById(req.params.id);
-
-    if (!doctor || doctor.role !== "doctor") {
-      return res.status(404).json({ message: "Doctor not found" });
-    }
-
-    doctor.doctorInfo.status = "approved";
-    await doctor.save();
-
-    await sendEmail(
-      doctor.email,
-      "Account Approved",
-      "Your doctor account has been approved. You can now login.",
-    );
-
-    res.status(200).json({
-      message: "Doctor approved successfully",
-      data: doctor,
-    });
-  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
-// ================= REVOKE (REJECT) DOCTOR =================
-const revokeDoctor = async (req, res) => {
+// ================= UPDATE PROFILE =================
+const updateController = async (req, res) => {
   try {
-    const doctor = await User.findById(req.params.id);
+    const userId = req.user.id;
+    const { error, value } = updateProfileValidation.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
 
-    if (!doctor || doctor.role !== "doctor") {
-      return res.status(404).json({ message: "Doctor not found" });
+    if (error) {
+      return res.status(400).json({ message: error.details[0].message });
     }
 
-    doctor.doctorInfo.status = "rejected";
-    await doctor.save();
-
-    await sendEmail(
-      doctor.email,
-      "Account Rejected",
-      "Your doctor account has been rejected. Please contact support.",
+    const { name, phone, location } = value;
+    const updateUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          name,
+          phone,
+          location,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      },
     );
+    if (!updateUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-    res.status(200).json({
-      message: "Doctor rejected successfully",
-      data: doctor,
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      user: updateUser,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ msg: error.message });
   }
 };
+const forgetPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ msg: "user not found" });
+const otp= Math.floor(10000+Math.random()*90000).toString();
+user.resetOtp=otp;
+user.resetOtpExpires=Date.now() + 10 * 60 * 1000;
+    await user.save();
+    // console.log(user.email);
+    
+     await sendEmail(
+  user.email,
+  "reset password",
+  `Your OTP is: ${otp}. It expires in 10 minutes.`
+);
+    res.status(200).json({msg:"Otp sent to email"})
+  } catch (error) {
+    res.status(500).json({msg:error.message})
+  }
+};
+const verifyOtp = async (req, res) => {
+  try {
+    const { error, value } = verifyOtpValidation.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
 
+    if (error) {
+      return res.status(400).json({
+        message: error.details[0].message,
+      });
+    }
+
+    const { email, otp } = value;
+
+    const user = await User.findOne({
+      email,
+      resetOtp: otp.toString(),
+      resetOtpExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Invalid or expired OTP",
+      });
+    }
+
+    const resetToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "10m" }
+    );
+
+    user.resetOtp = undefined;
+    user.resetOtpExpires = undefined;
+
+    await user.save();
+
+    res.json({
+      message: "OTP verified",
+      resetToken,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      msg: error.message,
+    });
+  }
+};
+const resetPassword = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        message: "No token provided",
+      });
+    }
+    const token = authHeader.split(" ")[1];
+ const { error, value } = resetPasswordValidation.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
+
+    if (error) {
+      return res.status(400).json({ message: error.details[0].message });
+    }
+
+    const { password, confirmPassword } = value;
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        message: "Passwords do not match",
+      });
+    }
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET
+    );
+
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Password reset successful",
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
 module.exports = {
   registerController,
   loginController,
-  ApproveDoctor,
-  revokeDoctor,
+  updateController,
+  forgetPassword,
+  verifyOtp,
+  resetPassword
 };
