@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-
+const Doctor=require ('./Doctor')
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },

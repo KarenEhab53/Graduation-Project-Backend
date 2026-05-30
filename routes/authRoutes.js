@@ -5,7 +5,7 @@ const {
   registerController,
   loginController,
   ApproveDoctor,
-  revokeDoctor,updateController,forgetPassword,verifyOtp,resetPassword
+  revokeDoctor,updateController,forgetPassword,verifyOtp,resetPassword,deleteUser
 } = require("../controllers/authController");
 
 const upload = require("../middleware/upload");
@@ -35,4 +35,5 @@ router.put("/update-profile",auth,updateController)
 router.post("/forget-password",forgetPassword)
 router.post("/verfiy-otp",verifyOtp)
 router.post("/reset-password",resetPassword)
+router.delete("/delete-user/:id",auth,isAdmin,deleteUser)
 module.exports = router;

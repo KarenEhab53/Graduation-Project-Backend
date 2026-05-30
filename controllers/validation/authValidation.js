@@ -1,5 +1,4 @@
 const Joi = require("joi");
-const { resetPassword } = require("../authController");
 const registerValidation = Joi.object({
   name: Joi.string()
     .trim()

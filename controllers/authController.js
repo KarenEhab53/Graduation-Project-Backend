@@ -1,7 +1,9 @@
 const {
   registerValidation,
   loginValidation,
-  updateProfileValidation,verifyOtpValidation,resetPasswordValidation
+  updateProfileValidation,
+  verifyOtpValidation,
+  resetPasswordValidation,
 } = require("./validation/authValidation");
 
 const bcrypt = require("bcrypt");
@@ -9,6 +11,8 @@ const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const sendEmail = require("../services/emailService");
+const Slots = require("../models/Slots");
+const Doctor = require("../models/Doctor");
 
 // ================= REGISTER =================
 const registerController = async (req, res) => {
@@ -116,7 +120,7 @@ const loginController = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        message: "Invalid email or password",
+        message: "User not Found",
       });
     }
 
@@ -151,7 +155,7 @@ const loginController = async (req, res) => {
       { expiresIn: "7d" },
     );
 
-    const safeUser = await User.findById(user._id).select("-password");
+    const safeUser = await User.findById(user.id).select("-password");
 
     res.status(200).json({
       message: "Login successful",
@@ -160,6 +164,39 @@ const loginController = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+// ================= DELETE USER (DOCTOR/PATIENT) =================
+const deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        msg: "User not found",
+      });
+    }
+    const doctor = await Doctor.findOneAndDelete({ userId });
+
+    if (doctor) {
+      await Slots.deleteMany({ doctorId: doctor._id });
+    }
+
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({
+      success: true,
+      msg: "User and related data deleted successfully",
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      msg: error.message,
+    });
   }
 };
 // ================= UPDATE PROFILE =================
@@ -202,27 +239,29 @@ const updateController = async (req, res) => {
     res.status(500).json({ msg: error.message });
   }
 };
+// ================= FORGET PASSWORD =================
 const forgetPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ msg: "user not found" });
-const otp= Math.floor(10000+Math.random()*90000).toString();
-user.resetOtp=otp;
-user.resetOtpExpires=Date.now() + 10 * 60 * 1000;
+    const otp = Math.floor(10000 + Math.random() * 90000).toString();
+    user.resetOtp = otp;
+    user.resetOtpExpires = Date.now() + 10 * 60 * 1000;
     await user.save();
     // console.log(user.email);
-    
-     await sendEmail(
-  user.email,
-  "reset password",
-  `Your OTP is: ${otp}. It expires in 10 minutes.`
-);
-    res.status(200).json({msg:"Otp sent to email"})
+
+    await sendEmail(
+      user.email,
+      "reset password",
+      `Your OTP is: ${otp}. It expires in 10 minutes.`,
+    );
+    res.status(200).json({ msg: "Otp sent to email" });
   } catch (error) {
-    res.status(500).json({msg:error.message})
+    res.status(500).json({ msg: error.message });
   }
 };
+// ================= VERIFY OTP =================
 const verifyOtp = async (req, res) => {
   try {
     const { error, value } = verifyOtpValidation.validate(req.body, {
@@ -250,11 +289,9 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    const resetToken = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "10m" }
-    );
+    const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "10m",
+    });
 
     user.resetOtp = undefined;
     user.resetOtpExpires = undefined;
@@ -265,13 +302,13 @@ const verifyOtp = async (req, res) => {
       message: "OTP verified",
       resetToken,
     });
-
   } catch (error) {
     res.status(500).json({
       msg: error.message,
     });
   }
 };
+// ================= RESET PASSWORD =================
 const resetPassword = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -282,7 +319,7 @@ const resetPassword = async (req, res) => {
       });
     }
     const token = authHeader.split(" ")[1];
- const { error, value } = resetPasswordValidation.validate(req.body, {
+    const { error, value } = resetPasswordValidation.validate(req.body, {
       abortEarly: false,
       stripUnknown: true,
     });
@@ -299,10 +336,7 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const user = await User.findById(decoded.id);
 
@@ -319,7 +353,6 @@ const resetPassword = async (req, res) => {
     res.status(200).json({
       message: "Password reset successful",
     });
-
   } catch (error) {
     res.status(500).json({
       message: error.message,
@@ -332,5 +365,6 @@ module.exports = {
   updateController,
   forgetPassword,
   verifyOtp,
-  resetPassword
+  resetPassword,
+  deleteUser
 };
