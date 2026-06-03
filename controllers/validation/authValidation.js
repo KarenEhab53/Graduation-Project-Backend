@@ -72,7 +72,6 @@ const updateProfileValidation=Joi.object({
     .max(30)
     .pattern(/^[a-zA-Z\s]+$/),
   phone: Joi.string()
-    .required()
     .trim()
     .pattern(/^01[0-2,5]{1}[0-9]{8}$/)
     .messages({

@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   registerController,
   loginController,
+  getProfile,
   ApproveDoctor,
   revokeDoctor,updateController,forgetPassword,verifyOtp,resetPassword,deleteUser
 } = require("../controllers/authController");
@@ -31,9 +32,10 @@ router.post(
   registerController,
 );
 router.post("/login", loginController);
-router.put("/update-profile",auth,updateController)
-router.post("/forget-password",forgetPassword)
-router.post("/verfiy-otp",verifyOtp)
-router.post("/reset-password",resetPassword)
-router.delete("/delete-user/:id",auth,isAdmin,deleteUser)
+router.get("/profile", auth, getProfile);
+router.put("/update-profile", auth, upload.fields([{ name: "profileImage", maxCount: 1 },]),updateController,);
+router.post("/forget-password", forgetPassword);
+router.post("/verify-otp", verifyOtp);
+router.post("/reset-password", resetPassword);
+router.delete("/delete-user/:id", auth, isAdmin, deleteUser);
 module.exports = router;
