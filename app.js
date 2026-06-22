@@ -35,6 +35,9 @@ app.use("/api", authRoutes);
 const doctorRoutes = require("./routes/doctorRoutes");
 app.use("/api", doctorRoutes);
 
+const locationsRoutes = require("./routes/locations");
+app.use("/api", locationsRoutes);
+
 const port = process.env.PORT || 3000;
 
 dbConnection();
