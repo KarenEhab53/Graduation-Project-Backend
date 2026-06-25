@@ -132,7 +132,6 @@ const loginController = async (req, res) => {
       });
     }
 
-    // DOCTOR STATUS CHECK
     if (user.role === "doctor") {
       const status = user.doctorInfo?.status;
 
@@ -203,30 +202,48 @@ const deleteUser = async (req, res) => {
 const updateController = async (req, res) => {
   try {
     const userId = req.user.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const { error, value } = updateProfileValidation.validate(req.body, {
       abortEarly: false,
       stripUnknown: true,
     });
 
     if (error) {
-      return res.status(400).json({ message: error.details[0].message });
+      return res.status(400).json({
+        message: error.details[0].message,
+      });
     }
 
-    const { name, phone, location } = value;
+    const { name, phone, location } = value || {};
+
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    const profileImage = req.files?.profileImage?.[0]
+      ? `${baseUrl}/uploads/${req.files.profileImage[0].filename}`
+      : undefined;
+
+    const updateData = {};
+
+    if (name) updateData.name = name;
+    if (phone) updateData.phone = phone;
+    if (location) updateData.location = location;
+    if (profileImage) updateData.profileImage = profileImage;
+
     const updateUser = await User.findByIdAndUpdate(
       userId,
       {
-        $set: {
-          name,
-          phone,
-          location,
-        },
+        $set: updateData,
       },
       {
         new: true,
         runValidators: true,
       },
     );
+
     if (!updateUser) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -235,6 +252,22 @@ const updateController = async (req, res) => {
       message: "Profile updated successfully",
       user: updateUser,
     });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+// ================= GET PROFILE =================
+const getProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ user });
   } catch (error) {
     res.status(500).json({ msg: error.message });
   }
@@ -366,5 +399,6 @@ module.exports = {
   forgetPassword,
   verifyOtp,
   resetPassword,
-  deleteUser
+  deleteUser,
+  getProfile,
 };

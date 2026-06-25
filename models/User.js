@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema(
         "North Sinai",
         "South Sinai",
       ],
-      default: "Cairo",
+
     },
 
     phone: {

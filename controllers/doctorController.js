@@ -187,6 +187,64 @@ const getDoctorProfile = async (req, res) => {
     });
   }
 };
+// ================= get All Doctor Profile =================
+
+const getAllDoctorProfile = async (req, res) => {
+  try {
+    const { city, specialty, name } = req.query;
+
+    const doctorFilter = {};
+    if (specialty) {
+      doctorFilter.specialty = { $regex: specialty, $options: "i" };
+    }
+
+    let doctors = await Doctor.find(doctorFilter).populate(
+      "userId",
+      "name email phone profileImage location",
+    );
+
+    // Filter by city and name (on the populated userId fields)
+    if (city) {
+      const cityRegex = new RegExp(city, "i");
+      doctors = doctors.filter(
+        (doc) => doc.userId && cityRegex.test(doc.userId.location || ""),
+      );
+    }
+
+    if (name) {
+      const nameRegex = new RegExp(name, "i");
+      doctors = doctors.filter(
+        (doc) => doc.userId && nameRegex.test(doc.userId.name || ""),
+      );
+    }
+
+    if (!doctors.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No doctors found",
+      });
+    }
+
+    // Attach available slots to each doctor
+    const doctorsWithSlots = await Promise.all(
+      doctors.map(async (doctor) => {
+        const slots = await Slot.find({
+          doctorId: doctor._id,
+          isBooked: false,
+        });
+        return { ...doctor.toObject(), slots };
+      }),
+    );
+
+    res.status(200).json({
+      success: true,
+      count: doctorsWithSlots.length,
+      data: doctorsWithSlots,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 // ================= ADD Doctor SLOTS =================
 const toMinutes = (t) => {
   const [h, m] = t.split(":").map(Number);
@@ -254,4 +312,5 @@ module.exports = {
   updateDoctorProfile,
   getDoctorProfile,
   addSlots,
+  getAllDoctorProfile
 };
