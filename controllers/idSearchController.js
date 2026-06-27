@@ -155,9 +155,33 @@ const getIDSearchByNid = async (req, res) => {
     });
   }
 };
+const getMyNID = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const idSearch = await IDSearch.findOne({
+      userId,
+    }).populate("userId", "username email nid");
+
+    if (!idSearch) {
+      return res.status(404).json({
+        message: "ID Search record not found",
+      });
+    }
+
+    res.status(200).json({
+      data: idSearch,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
 module.exports = {
   addIDSearch,
   updateIDSearch,
   deleteIDSearch,
   getIDSearchByNid,
+  getMyNID
 };

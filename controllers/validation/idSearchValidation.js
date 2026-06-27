@@ -3,7 +3,6 @@ const Joi = require("joi");
 const idSearchValidation = Joi.object({
   emergencyNumber: Joi.string()
     .pattern(/^01[0125]\d{8}$/)
-    .required()
     .messages({
       "string.empty": "Emergency number is required",
       "string.pattern.base": "Invalid Egyptian phone number",
@@ -35,8 +34,7 @@ const idSearchValidation = Joi.object({
     .max(1000)
     .optional(),
 
-  profileImage: Joi.string()
-    .optional(),
+ 
 });
 
 module.exports = {idSearchValidation};
